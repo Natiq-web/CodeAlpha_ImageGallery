@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Image Gallery</title>
+  <meta name="description" content="Professional responsive image gallery with filters and lightbox" />
+  <style>
+    :root{
+      --bg:#0f1720;
+      --card:#0b1220;
+      --accent:#6ee7b7;
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+      --gap:18px;
+      --max-width:1100px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+      background:linear-gradient(180deg,#071018 0%, #071722 100%);
+      color:#e6eef6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:32px 18px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+    }
+
+    .wrap{
+      width:100%;
+      max-width:var(--max-width);
+    }
+
+    header{
+      display:flex;
+      gap:16px;
+      align-items:center;
+      margin-bottom:20px;
+      justify-content:space-between;
+    }
+
+    .title{
+      display:flex;
+      gap:14px;
+      align-items:center;
+    }
+    .logo{
+      width:52px;
+      height:52px;
+      background:linear-gradient(135deg,var(--accent),#60a5fa);
+      border-radius:10px;
+      display:grid;
+      place-items:center;
+      font-weight:700;
+      color:#062023;
+      box-shadow:0 6px 18px rgba(0,0,0,0.5), inset 0 -6px 18px rgba(255,255,255,0.03);
+    }
+    h1{
+      font-size:20px;
+      margin:0;
+      letter-spacing:0.2px;
+    }
+    p.lead{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    /* Filter buttons */
+    .filters{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+    .filter-btn{
+      background:var(--glass);
+      border:1px solid rgba(255,255,255,0.04);
+      padding:8px 12px;
+      border-radius:999px;
+      color:var(--muted);
+      font-size:13px;
+      cursor:pointer;
+      transition:all .18s ease;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+    .filter-btn[data-active="true"]{
+      background:linear-gradient(90deg,var(--accent),#60a5fa);
+      color:#062023;
+      transform:translateY(-2px);
+      box-shadow:0 6px 20px rgba(6,32,35,0.45);
+    }
+    .filter-btn:focus{outline:3px solid rgba(110,231,183,0.12);}
+
+    /* Gallery grid - SAME SIZE FIX */
+    .gallery{
+      display:grid;
+      gap:var(--gap);
+      grid-template-columns:repeat(2, minmax(0,1fr));
+    }
+    @media(min-width:700px){
+      .gallery{grid-template-columns:repeat(3, minmax(0,1fr));}
+    }
+    @media(min-width:1100px){
+      .gallery{grid-template-columns:repeat(4, minmax(0,1fr));}
+    }
+
+    .card{
+      position:relative;
+      border-radius:12px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.05));
+      cursor:zoom-in;
+      transform-origin:center;
+      transition:transform .28s cubic-bezier(.2,.9,.25,1), box-shadow .28s;
+      box-shadow:0 6px 18px rgba(2,6,23,0.6);
+      /* FIXED SIZE FOR ALL CARDS */
+      aspect-ratio: 1/1;
+      min-height: 200px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .card img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+      transition:transform .45s ease, filter .35s ease;
+      vertical-align:middle;
+    }
+    .card:hover{transform:translateY(-6px) scale(1.02)}
+    .card .meta{
+      position:absolute;
+      left:12px;
+      right:12px;
+      bottom:12px;
+      padding:10px 12px;
+      border-radius:10px;
+      background:linear-gradient(180deg, rgba(3,6,12,0.5), rgba(2,6,12,0.35));
+      backdrop-filter: blur(6px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      transform:translateY(8px);
+      opacity:0;
+      transition:all .22s ease;
+    }
+    .card:hover .meta{transform:translateY(0); opacity:1}
+    .meta .title{
+      font-size:13px;
+      font-weight:600;
+      color:#fff;
+    }
+    .meta .tag{
+      font-size:12px;
+      color:var(--muted);
+      padding:6px 8px;
+      border-radius:8px;
+      background:rgba(255,255,255,0.03);
+    }
+
+    /* Lightbox modal */
+    .lightbox{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      background:linear-gradient(180deg, rgba(2,8,15,0.75), rgba(2,8,15,0.9));
+      padding:28px;
+    }
+    .lightbox.open{display:flex}
+    .lightbox .container{
+      position:relative;
+      width:100%;
+      max-width:960px;
+      border-radius:14px;
+      overflow:hidden;
+      background:rgba(3,7,12,0.2);
+      box-shadow:0 14px 40px rgba(2,8,20,0.7);
+    }
+    .lightbox img{
+      display:block;
+      width:100%;
+      max-height:78vh;
+      object-fit:contain;
+      background:linear-gradient(180deg, #071018, #061426);
+    }
+    .lightbox .info{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 16px;
+      color:var(--muted);
+      font-size:14px;
+      background:linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.08));
+    }
+    .lightbox .info .caption{font-weight:600; color:#fff}
+    .controls{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      pointer-events:none;
+    }
+    .btn{
+      pointer-events:auto;
+      background:rgba(0,0,0,0.5);
+      border:0;
+      color:#fff;
+      padding:10px 12px;
+      border-radius:10px;
+      margin:10px;
+      cursor:pointer;
+      transition:transform .15s ease, background .15s;
+    }
+    .btn:active{transform:scale(.98)}
+    .btn.icon{
+      display:inline-grid;
+      place-items:center;
+      width:44px;
+      height:44px;
+      font-size:18px;
+    }
+    .close-btn{
+      position:absolute;
+      right:10px;
+      top:10px;
+      background:linear-gradient(90deg,#111827, #0f1724);
+      border-radius:10px;
+      padding:8px 10px;
+      border:1px solid rgba(255,255,255,0.03);
+    }
+
+    /* small thumbnails row for mobile inside lightbox */
+    .thumb-row{
+      display:flex;
+      gap:8px;
+      overflow:auto;
+      padding:8px 12px;
+    }
+    .thumb-row img{
+      width:64px;
+      height:44px;
+      object-fit:cover;
+      border-radius:8px;
+      opacity:.7;
+      transition:opacity .18s;
+    }
+    .thumb-row img.active{opacity:1; outline:3px solid rgba(110,231,183,0.16)}
+
+    footer{
+      margin-top:20px;
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+    }
+
+    /* small accessible focus */
+    .sr-only{
+      position:absolute!important;
+      height:1px;width:1px;
+      overflow:hidden;clip:rect(1px,1px,1px,1px);
+      white-space:nowrap;border:0;padding:0;margin:-1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" role="main">
+    <header>
+      <div class="title">
+        <div class="logo">CA</div>
+        <div>
+          <h1>Image Gallery </h1>
+          <p class="lead">Responsive gallery • Lightbox • Filters • Keyboard navigation</p>
+        </div>
+      </div>
+
+     
+    </header>
+
+    <div class="filters" aria-label="Gallery filters" role="toolbar">
+      <button class="filter-btn" data-filter="all" data-active="true">All</button>
+      <button class="filter-btn" data-filter="nature">Nature</button>
+      <button class="filter-btn" data-filter="architecture">Architecture</button>
+      <button class="filter-btn" data-filter="people">People</button>
+      <button class="filter-btn" data-filter="animals">Animals</button>
+      <button class="filter-btn" data-filter="food">Food</button>
+      <button class="filter-btn" data-filter="travel">Travel</button>
+      <button class="filter-btn" data-filter="sports">Sports</button>
+    </div>
+
+    <section class="gallery" id="gallery" aria-live="polite">
+      <!-- cards generated by JS for simplicity / easy to maintain -->
+    </section>
+
+    <footer>
+      Tip: Use left / right arrows to navigate in the lightbox. Press Esc to close.
+    </footer>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="container" role="document">
+      <button class="btn close-btn" id="lbClose" aria-label="Close (Esc)">✕</button>
+      <div class="controls" aria-hidden="true">
+        <button class="btn icon" id="prevBtn" aria-label="Previous (Left arrow)">◀</button>
+        <button class="btn icon" id="nextBtn" aria-label="Next (Right arrow)">▶</button>
+      </div>
+
+      <img src="" alt="" id="lightboxImg" />
+      <div class="info">
+        <div class="caption" id="lightboxCaption">Caption</div>
+        <div class="meta-light" id="lightboxTag">Tag</div>
+      </div>
+
+      <div class="thumb-row" id="thumbRow" aria-hidden="false"></div>
+    </div>
+  </div>
+
+  <script>
+    /***** 20+ IMAGES WITH 7 CATEGORIES *****/
+    const IMAGES = [
+      // Nature (4 images)
+      {id:1, src:"https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1600&auto=format&fit=crop", title:"Mountain Sunrise", tag:"nature"},
+      {id:2, src:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1600&auto=format&fit=crop", title:"Green Forest", tag:"nature"},
+      {id:3, src:"https://images.unsplash.com/photo-1426604966848-d7adac402bff?q=80&w=1600&auto=format&fit=crop", title:"Waterfall", tag:"nature"},
+      {id:4, src:"https://images.unsplash.com/photo-1505144808419-1957a94ca61e?q=80&w=1600&auto=format&fit=crop", title:"Lake View", tag:"nature"},
+
+      // Architecture (4 images)
+      {id:5, src:"https://images.unsplash.com/photo-1487958449943-2429e8be8625?q=80&w=1600&auto=format&fit=crop", title:"Modern Building", tag:"architecture"},
+      {id:6, src:"https://images.unsplash.com/photo-1513584684374-8bab748fbf90?q=80&w=1600&auto=format&fit=crop", title:"Bridge Architecture", tag:"architecture"},
+      {id:7, src:"https://images.unsplash.com/photo-1496568816309-51d7c20e3b21?q=80&w=1600&auto=format&fit=crop", title:"Cityscape", tag:"architecture"},
+      {id:8, src:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1600&auto=format&fit=crop", title:"Modern House", tag:"architecture"},
+
+      // People (3 images)
+     
+      {id:10, src:"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1600&auto=format&fit=crop", title:"Creative Person", tag:"people"},
+      {id:11, src:"https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=1600&auto=format&fit=crop", title:"Professional Woman", tag:"people"},
+
+      // Animals (3 images)
+      {id:12, src:"https://images.unsplash.com/photo-1415369629372-26f2fe60c467?q=80&w=1600&auto=format&fit=crop", title:"Wild Lion", tag:"animals"},
+      {id:13, src:"https://images.unsplash.com/photo-1456926631375-92c8ce872def?q=80&w=1600&auto=format&fit=crop", title:"Elephant Safari", tag:"animals"},
+      {id:14, src:"https://images.unsplash.com/photo-1474511320723-9a56873867b5?q=80&w=1600&auto=format&fit=crop", title:"Fox in Forest", tag:"animals"},
+
+      // Food (3 images)
+      {id:15, src:"https://images.unsplash.com/photo-1565958011703-44f9829ba187?q=80&w=1600&auto=format&fit=crop", title:"Delicious Pizza", tag:"food"},
+      {id:16, src:"https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=1600&auto=format&fit=crop", title:"Fresh Salad", tag:"food"},
+      {id:17, src:"https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?q=80&w=1600&auto=format&fit=crop", title:"Pancake Breakfast", tag:"food"},
+
+      // Travel (3 images)
+      {id:18, src:"https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=1600&auto=format&fit=crop", title:"Travel Adventure", tag:"travel"},
+      {id:19, src:"https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1600&auto=format&fit=crop", title:"Road Trip", tag:"travel"},
+      {id:20, src:"https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1600&auto=format&fit=crop", title:"Mountain Travel", tag:"travel"},
+
+      // Sports (3 images)
+      {id:21, src:"https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1600&auto=format&fit=crop", title:"Basketball Game", tag:"sports"},
+      {id:22, src:"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=1600&auto=format&fit=crop", title:"Fitness Training", tag:"sports"},
+      {id:23, src:"https://images.unsplash.com/photo-1551698618-1dfe5d97d256?q=80&w=1600&auto=format&fit=crop", title:"Soccer Match", tag:"sports"}
+    ];
+
+    /* ---------- build gallery dynamically ---------- */
+    const gallery = document.getElementById('gallery');
+
+    function makeCard(item){
+      const btn = document.createElement('button');
+      btn.className = 'card';
+      btn.setAttribute('data-id', item.id);
+      btn.setAttribute('data-tag', item.tag);
+      btn.setAttribute('aria-label', item.title + ' — open');
+      btn.innerHTML = `
+        <img src="${item.src}" alt="${item.title}" loading="lazy" />
+        <div class="meta">
+          <div class="title">${item.title}</div>
+          <div class="tag">${item.tag}</div>
+        </div>
+      `;
+      // click opens lightbox
+      btn.addEventListener('click', () => openLightbox(item.id));
+      return btn;
+    }
+
+    function renderGallery(items){
+      gallery.innerHTML = '';
+      items.forEach(item => gallery.appendChild(makeCard(item)));
+    }
+
+    renderGallery(IMAGES); // initial render (all)
+
+    /* ---------- filtering ---------- */
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        filterBtns.forEach(b=>b.dataset.active = 'false');
+        btn.dataset.active = 'true';
+        const filter = btn.dataset.filter;
+        if(filter === 'all') renderGallery(IMAGES);
+        else renderGallery(IMAGES.filter(i => i.tag === filter));
+      });
+    });
+
+    /* ---------- lightbox ---------- */
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxTag = document.getElementById('lightboxTag');
+    const thumbRow = document.getElementById('thumbRow');
+    const lbClose = document.getElementById('lbClose');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    let currentIndex = 0;
+    let visibleImages = IMAGES.slice();
+
+    function openLightbox(id){
+      // if gallery is filtered, use current DOM items as visibleImages
+      const activeFilter = document.querySelector('.filter-btn[data-active="true"]').dataset.filter;
+      visibleImages = (activeFilter === 'all') ? IMAGES.slice() : IMAGES.filter(i => i.tag === activeFilter);
+
+      currentIndex = visibleImages.findIndex(img => img.id === id);
+      if(currentIndex < 0) currentIndex = 0;
+      updateLightbox();
+      lightbox.classList.add('open');
+      lightbox.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';
+      // focus close for accessibility
+      lbClose.focus();
+    }
+
+    function closeLightbox(){
+      lightbox.classList.remove('open');
+      lightbox.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';
+    }
+
+    function updateLightbox(){
+      const item = visibleImages[currentIndex];
+      lightboxImg.src = item.src;
+      lightboxImg.alt = item.title;
+      lightboxCaption.textContent = item.title;
+      lightboxTag.textContent = item.tag;
+
+      // render thumbs
+      thumbRow.innerHTML = '';
+      visibleImages.forEach((it, idx) => {
+        const t = document.createElement('img');
+        t.src = it.src;
+        t.alt = it.title;
+        t.loading = 'lazy';
+        if(idx === currentIndex) t.classList.add('active');
+        t.addEventListener('click', ()=> {
+          currentIndex = idx;
+          updateLightbox();
+        });
+        thumbRow.appendChild(t);
+      });
+    }
+
+    function showNext(){
+      currentIndex = (currentIndex + 1) % visibleImages.length;
+      updateLightbox();
+    }
+    function showPrev(){
+      currentIndex = (currentIndex - 1 + visibleImages.length) % visibleImages.length;
+      updateLightbox();
+    }
+
+    prevBtn.addEventListener('click', showPrev);
+    nextBtn.addEventListener('click', showNext);
+    lbClose.addEventListener('click', closeLightbox);
+
+    // close when clicking outside image container
+    lightbox.addEventListener('click', (e) => {
+      if(e.target === lightbox) closeLightbox();
+    });
+
+    // keyboard navigation
+    document.addEventListener('keydown', (e)=> {
+      if(!lightbox.classList.contains('open')) return;
+      if(e.key === 'Escape') closeLightbox();
+      if(e.key === 'ArrowRight') showNext();
+      if(e.key === 'ArrowLeft') showPrev();
+    });
+
+    // small improvement: trap focus to close btn while open (basic)
+    document.addEventListener('focusin', (e) => {
+      if(!lightbox.classList.contains('open')) return;
+      if(!lightbox.contains(e.target)) lbClose.focus();
+    });
+
+    /* ---------- accessibility: allow Tab on controls (they are buttons already) ---------- */
+    // done via native button elements
+
+    /* ---------- optional: handle touch swipe (basic) ---------- */
+    (function addSwipe(){
+      let startX = null;
+      const threshold = 40;
+      const img = document.querySelector('.lightbox img');
+      lightbox.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+      }, {passive:true});
+      lightbox.addEventListener('touchend', e => {
+        if(startX === null) return;
+        const endX = e.changedTouches[0].clientX;
+        const diff = endX - startX;
+        if(Math.abs(diff) > threshold){
+          if(diff < 0) showNext(); else showPrev();
+        }
+        startX = null;
+      });
+    })();
+
+    /* ---------- small enhancement: keyboard focus for gallery cards ---------- */
+    document.addEventListener('keydown', e => {
+      if(e.key === 'Enter' && document.activeElement.classList.contains('card')){
+        document.activeElement.click();
+      }
+    });
+
+  </script>
+</body>
+</html>
